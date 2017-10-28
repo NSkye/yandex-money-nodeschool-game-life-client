@@ -17,6 +17,7 @@
     "url": "git@github.com:NikitaRudenko/yandex-money-nodeschool-game-life-client.git"
   },
   "dependencies": {
+    "socket.io-client": "^2.0.4",
     "vue": "^2.5.2",
     "vue-material": "^0.7.5"
   },
