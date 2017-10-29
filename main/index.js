@@ -43,7 +43,7 @@ const createSocket = (url, params) => {
 }
 const addr = {
   local: `ws://localhost:3001`,
-  network: `ws://192.168.0.92:3001`
+  network: `ws://192.168.0.92:3001`,
   remote: `ws://ws.rudenko.tech/life/api`
 }
 App.onToken = function (token) {
