@@ -38,12 +38,15 @@ const types = {
 
 const createSocket = (url, params) => {
   const keys = Object.keys(params);
-  const path = keys.map(key => `?${key}=${params[key]}`).join();
-  return new WebSocket(url+'/'+path);
+  const path = keys.map(key => `${key}=${params[key]}`).join('&');
+  return new WebSocket(url+'/?'+path);
 }
-
+const addr = {
+  local: `ws://localhost:3001`,
+  remote: `ws://ws.rudenko.tech/life/api`
+}
 App.onToken = function (token) {
-  const socket = createSocket(`ws://ws.rudenko.tech/life/api`, {token});
+  const socket = createSocket(addr.local, {token});
   socket.onopen = () => {
     console.log(`Connection established with token=${token}`);
   }
