@@ -19,7 +19,6 @@
 //
 // Nyan cat lies here...
 //
-
 let gameInstance = null;
 const types = {
   "INITIALIZE": (data, socket) => {
@@ -36,8 +35,14 @@ const types = {
   }
 };
 
+const createSocket = (url, params) => {
+  const keys = Object.keys(params);
+  const path = keys.map(key => `?${key}=${params[key]}`).join();
+  return new WebSocket(url+'/'+path);
+}
+
 App.onToken = function (token) {
-  const socket = new WebSocket(`ws://ws.rudenko.tech/life/api/?token=${token}`);
+  const socket = createSocket(`ws://ws.rudenko.tech/life/api`, {token});
   socket.onopen = () => {
     console.log(`Connection established with token=${token}`);
   }
