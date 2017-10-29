@@ -42,8 +42,24 @@ App.onToken = function (token) {
     console.log(`Connection established with token=${token}`);
   }
   socket.onmessage = (msg) => {
-    const msgdata = JSON.parse(msg.data);
-    console.log(msgdata);
-    types[msgdata.type](msgdata.data, socket);
+    try {
+      const msgdata = JSON.parse(msg.data);
+      if (!types[msgdata.type]) {
+        throw new Error(`Message type error. Expected one of following types: ${Object.keys(types)}; got: ${msgdata.type}`);
+      }
+      types[msgdata.type](msgdata.data, socket);
+    } catch (e) {
+      return console.log(e.message);
+    }
+  }
+  socket.onerror = error => {
+    console.log('Socket error: ', error);
+  }
+  socket.onclose = event => {
+    console.log(`
+      Connection closed.
+      Code: ${event.code},
+      Reason: ${event.reason}`);
+    gameInstance = null;
   }
 }
