@@ -50,7 +50,6 @@ App.onToken = (token) => {
           gameInstance.send = data => {
             socket.emit('message', {type: 'ADD_POINT', data});
           };
-          initialized = true;
         }
         break;
       case 'UPDATE_STATE':
