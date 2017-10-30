@@ -73,6 +73,13 @@ App.onToken = (token) => {
   }
   const handleReconnectionStart = attempt => console.log(`Reconnecting... (Attempt #${attempt})`)
   const handleReconnection = attempts => console.log(`Successfully reconnected with token ${token} after ${attempts} attempts`);
+  const handleFailedReconnection = () => {
+    const reloadAfter = 15000;
+    console.log(`All reconnection attempts failed. Page will be reloaded after ${reloadAfter/1000} seconds\nCheck "Persist Logs" if you want to keep console messages.`);
+    setTimeout(() => {
+      location.reload();
+    }, reloadAfter);
+  }
   const handleError = (error) => console.log(`Socket error occured:`, error);
   const handleDisconnection = reason => {
     console.log(`Disconnected. Reason: ${reason}`);
@@ -88,6 +95,7 @@ App.onToken = (token) => {
   socket.on('connect', handleConnection);
   socket.on('reconnecting', handleReconnectionStart);
   socket.on('reconnect', handleReconnection);
+  socket.on('reconnect_failed', handleFailedReconnection);
   socket.on('message', handleMessage);
   socket.on('error', handleError);
   socket.on('disconnect', handleDisconnection);
