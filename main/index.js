@@ -21,7 +21,6 @@
 // Nyan cat lies here...
 //
 let gameInstance = null;
-let initialized = false; //Если инициализация будет проведена повторно после переподключения, то на экране появится второе поле
 
 const addr = {
   local: `ws://localhost:3001`,
@@ -44,7 +43,7 @@ App.onToken = (token) => {
     const data = message.data;
     switch (type) {
       case 'INITIALIZE':
-        if (!initialized) {
+        if (!gameInstance) { //инициализируем только если ещё не инициализировано, при повторной инициализации появится второе поле и вообще не нужно это
           gameInstance = new LifeGame(data.user, data.settings);
           gameInstance.init();
           gameInstance.setState(data.state);
