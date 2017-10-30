@@ -28,6 +28,20 @@ const addr = {
   remote: `ws://ws.rudenko.tech/life/api`
 }
 
+const initializeGame = (data, socket) => {
+  gameInstance = new LifeGame(data.user, data.settings);
+  gameInstance.init();
+  gameInstance.setState(data.state);
+  gameInstance.send = data => {
+    socket.emit('message', {type: 'ADD_POINT', data});
+  };
+}
+const updateGameState = (gameInstance, data) => {
+  if(!data)
+    throw new Error(`Message data error. No data`);
+  gameInstance.setState(data);
+}
+
 App.onToken = (token) => {
   const socket = io.connect(addr.local, {
     transports: ['websocket'],
@@ -44,16 +58,11 @@ App.onToken = (token) => {
     switch (type) {
       case 'INITIALIZE':
         if (!gameInstance) { //инициализируем только если ещё не инициализировано, при повторной инициализации появится второе поле и вообще не нужно это
-          gameInstance = new LifeGame(data.user, data.settings);
-          gameInstance.init();
-          gameInstance.setState(data.state);
-          gameInstance.send = data => {
-            socket.emit('message', {type: 'ADD_POINT', data});
-          };
+          initializeGame(data, socket);
         }
         break;
       case 'UPDATE_STATE':
-        gameInstance.setState(data);
+        updateGameState(gameInstance, data);
         break;
       default:
         throw new Error(`Message type error: expected one of types ${allowedTypes}; got: ${type}`);
