@@ -75,9 +75,9 @@ App.onToken = (token) => {
   const handleReconnection = attempts => console.log(`Successfully reconnected with token ${token} after ${attempts} attempts`);
   const handleError = (error) => console.log(`Socket error occured:`, error);
   const handleDisconnection = reason => {
-    console.log(`Disconnected. Reason: ${event}`);
+    console.log(`Disconnected. Reason: ${reason}`);
   };
-  const handleConnectionError = reason => {
+  const handleConnectionError = error => {
     console.log(`Connection error: ${error.message}`);
     disableLogOfFirstSuccessfullConnection = true; //Если мы переподключаемся, то нам уже и так будут выводиться логи из handleReconnection
   };
