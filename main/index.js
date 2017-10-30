@@ -21,7 +21,7 @@
 // Nyan cat lies here...
 //
 let gameInstance = null;
-let initialized = false;
+let initialized = false; //Если инициализация будет проведена повторно после переподключения, то на экране появится второе поле
 
 const addr = {
   local: `ws://localhost:3001`,
@@ -34,7 +34,8 @@ App.onToken = (token) => {
     transports: ['websocket'],
     path: `/`,
     query: {token},
-    reconnection: true
+    reconnection: true,
+    reconnectionAttempts: 10
   });
   let disableLogOfFirstSuccessfullConnection = false;
   const executeScenario = (message, socket) => {
@@ -72,20 +73,22 @@ App.onToken = (token) => {
       console.log(`Connected with token ${token}`);
     }
   }
+  const handleReconnectionStart = attempt => console.log(`Reconnecting... (Attempt #${attempt})`)
   const handleReconnection = attempts => console.log(`Successfully reconnected with token ${token} after ${attempts} attempts`);
   const handleError = (error) => console.log(`Socket error occured:`, error);
-  const handleDisconnection = event => {
-    console.log(`Disconnected. Reason: ${event}\nStarting reconnection...`);
+  const handleDisconnection = reason => {
+    console.log(`Disconnected. Reason: ${event}`);
   };
-  const handleConnectionError = error => {
-    console.log(`Connection error:`, error, `\nStarting reconnection...`);
+  const handleConnectionError = reason => {
+    console.log(`Connection error: ${error.message}`);
     disableLogOfFirstSuccessfullConnection = true; //Если мы переподключаемся, то нам уже и так будут выводиться логи из handleReconnection
   };
   const handleConnectionTimeout = () => {
-    console.log(`Connection timeout.` `\nStarting reconnection...`);
+    console.log(`Connection timeout.`);
   };
 
   socket.on('connect', handleConnection);
+  socket.on('reconnecting', handleReconnectionStart);
   socket.on('reconnect', handleReconnection);
   socket.on('message', handleMessage);
   socket.on('error', handleError);
