@@ -21,60 +21,75 @@
 // Nyan cat lies here...
 //
 let gameInstance = null;
-const handleToken = token => {
-  const addr = {
-    local: `ws://localhost:3001`,
-    network: `ws://192.168.0.92:3001`,
-    remote: `ws://ws.rudenko.tech/life/api`
-  }
+let initialized = false;
 
-  const handleOpen = () => console.log(`Connection established. ${token}`);
-  const handleMessage = msg => {
-    const executeScenario = (msgdata, socket) => {
-      const allowedTypes = ['INITIALIZE', 'UPDATE_STATE'];
-      const type = msgdata.type;
-      const data = msgdata.data;
-      switch (type) {
-        case 'INITIALIZE':
+const addr = {
+  local: `ws://localhost:3001`,
+  network: `ws://192.168.0.92:3001`,
+  remote: `ws://ws.rudenko.tech/life/api`
+}
+
+App.onToken = (token) => {
+  const socket = io.connect(addr.local, {
+    transports: ['websocket'],
+    path: `/`,
+    query: {token},
+    reconnection: true
+  });
+  let disableLogOfFirstSuccessfullConnection = false;
+  const executeScenario = (message, socket) => {
+    const allowedTypes = ['INITIALIZE', 'UPDATE_STATE'];
+    const type = message.type;
+    const data = message.data;
+    switch (type) {
+      case 'INITIALIZE':
+        if (!initialized) {
           gameInstance = new LifeGame(data.user, data.settings);
           gameInstance.init();
           gameInstance.setState(data.state);
-          gameInstance.send = (data) => {
-            const type = 'ADD_POINT';
-            socket.send(JSON.stringify({type, data}));
+          gameInstance.send = data => {
+            socket.emit('message', {type: 'ADD_POINT', data});
           };
-          break;
-        case 'UPDATE_STATE':
-          gameInstance.setState(data);
-          break;
-        default:
-          throw new Error(`Message type error. Expected one of following types: ${allowedTypes}; got: ${type}`);
-      }
+          initialized = true;
+        }
+        break;
+      case 'UPDATE_STATE':
+        gameInstance.setState(data);
+        break;
+      default:
+        throw new Error(`Message type error: expected one of types ${allowedTypes}; got: ${type}`);
     }
+  }
+  const handleMessage = message => {
     try {
-      executeScenario(JSON.parse(msg.data), socket);
+      executeScenario(message, socket);
     } catch (e) {
-      return console.log(e.message);
+      console.log(e.message);
     }
   }
-  const handleError = error => {
-    console.log('Socket error: ', error);
+  const handleConnection = () => {
+    if (!disableLogOfFirstSuccessfullConnection) {
+      console.log(`Connected with token ${token}`);
+    }
   }
-  const handleClose = event => {
-    console.log(`Connection closed.\nCode: ${event.code},\nReason: ${event.reason}`);
-    gameInstance = null;
-  }
-  const createSocket = (url, params) => {
-    const keys = Object.keys(params);
-    const path = keys.map(key => `${key}=${params[key]}`).join('&');
-    return new WebSocket(url+'/?'+path);
-  }
+  const handleReconnection = attempts => console.log(`Successfully reconnected with token ${token} after ${attempts} attempts`);
+  const handleError = (error) => console.log(`Socket error occured:`, error);
+  const handleDisconnection = event => {
+    console.log(`Disconnected. Reason: ${event}\nStarting reconnection...`);
+  };
+  const handleConnectionError = error => {
+    console.log(`Connection error:`, error, `\nStarting reconnection...`);
+    disableLogOfFirstSuccessfullConnection = true; //Если мы переподключаемся, то нам уже и так будут выводиться логи из handleReconnection
+  };
+  const handleConnectionTimeout = () => {
+    console.log(`Connection timeout.` `\nStarting reconnection...`);
+  };
 
-  const socket = createSocket(addr.local, {token});
-  socket.onopen = handleOpen;
-  socket.onmessage = handleMessage;
-  socket.onerror = handleError;
-  socket.onclose = handleClose;
-}
-
-App.onToken = handleToken;
+  socket.on('connect', handleConnection);
+  socket.on('reconnect', handleReconnection);
+  socket.on('message', handleMessage);
+  socket.on('error', handleError);
+  socket.on('disconnect', handleDisconnection);
+  socket.on('connect_error', handleConnectionError);
+  socket.on('connect_timeout', handleConnectionTimeout);
+};
