@@ -22,8 +22,7 @@
 //
 const addr = {
   local: `ws://127.0.0.1:3001`,
-  network: `ws://192.168.0.92:3001`,
-  remote: `ws://ws.rudenko.tech/life/api`
+  network: `ws://192.168.0.92:3001`
 }
 
 class LifeGameClient {
