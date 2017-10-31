@@ -26,7 +26,7 @@ const addr = {
 }
 
 class LifeGameClient {
-  constructor(address, token, reconnection, reconnectionAttempts) {
+  constructor(address, token, reconnection=false, reconnectionAttempts=Infinity) {
     this.token = token;
     this.gameInstance = null;
     this.firstConnection = true;
