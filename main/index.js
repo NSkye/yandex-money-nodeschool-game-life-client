@@ -20,94 +20,97 @@
 //
 // Nyan cat lies here...
 //
-let gameInstance = null;
-
 const addr = {
-  local: `ws://localhost:3001`,
+  local: `ws://127.0.0.1:3001`,
   network: `ws://192.168.0.92:3001`,
   remote: `ws://ws.rudenko.tech/life/api`
 }
 
-const initializeGame = (data, socket) => {
-  gameInstance = new LifeGame(data.user, data.settings);
-  gameInstance.init();
-  gameInstance.setState(data.state);
-  gameInstance.send = data => {
-    socket.emit('message', {type: 'ADD_POINT', data});
-  };
-}
-const updateGameState = (gameInstance, data) => {
-  if(!data)
-    throw new Error(`Message data error. No data`);
-  gameInstance.setState(data);
-}
+class LifeGameClient {
+  constructor(address, token, reconnection, reconnectionAttempts) {
+    this.token = token;
+    this.gameInstance = null;
+    this.firstConnection = true;
 
-App.onToken = (token) => {
-  const socket = io.connect(addr.local, {
-    transports: ['websocket'],
-    path: `/`,
-    query: {token},
-    reconnection: true,
-    reconnectionAttempts: 10
-  });
-  let disableLogOfFirstSuccessfullConnection = false;
-  const executeScenario = (message, socket) => {
-    const allowedTypes = ['INITIALIZE', 'UPDATE_STATE'];
-    const type = message.type;
-    const data = message.data;
-    switch (type) {
+    this.socket = io.connect(address, {
+      transports: ['websocket'],
+      path: `/`,
+      query: {token: this.token},
+      reconnection,
+      reconnectionAttempts
+    });
+    this.bindListeners(this.socket, this.token);
+  }
+
+  executeScenario(msg) {
+    switch (msg.type) {
       case 'INITIALIZE':
-        if (!gameInstance) { //инициализируем только если ещё не инициализировано, при повторной инициализации появится второе поле и вообще не нужно это
-          initializeGame(data, socket);
-        }
+        this.initializeGame(msg.data);
         break;
       case 'UPDATE_STATE':
-        updateGameState(gameInstance, data);
+        this.updateGameState(msg.data);
         break;
       default:
-        throw new Error(`Message type error: expected one of types ${allowedTypes}; got: ${type}`);
+        throw new Error(`Message type error: invalid message type ${msg.type}`);
     }
   }
-  const handleMessage = message => {
-    try {
-      executeScenario(message, socket);
-    } catch (e) {
-      console.log(e.message);
-    }
-  }
-  const handleConnection = () => {
-    if (!disableLogOfFirstSuccessfullConnection) {
-      console.log(`Connected with token ${token}`);
-    }
-  }
-  const handleReconnectionStart = attempt => console.log(`Reconnecting... (Attempt #${attempt})`)
-  const handleReconnection = attempts => console.log(`Successfully reconnected with token ${token} after ${attempts} attempts`);
-  const handleFailedReconnection = () => {
-    const reloadAfter = 15000;
-    console.log(`All reconnection attempts failed. Page will be reloaded after ${reloadAfter/1000} seconds\nCheck "Persist Logs" if you want to keep console messages.`);
-    setTimeout(() => {
-      location.reload();
-    }, reloadAfter);
-  }
-  const handleError = (error) => console.log(`Socket error occured:`, error);
-  const handleDisconnection = reason => {
-    console.log(`Disconnected. Reason: ${reason}`);
-  };
-  const handleConnectionError = error => {
-    console.log(`Connection error: ${error.message}`);
-    disableLogOfFirstSuccessfullConnection = true; //Если мы переподключаемся, то нам уже и так будут выводиться логи из handleReconnection
-  };
-  const handleConnectionTimeout = () => {
-    console.log(`Connection timeout.`);
-  };
 
-  socket.on('connect', handleConnection);
-  socket.on('reconnecting', handleReconnectionStart);
-  socket.on('reconnect', handleReconnection);
-  socket.on('reconnect_failed', handleFailedReconnection);
-  socket.on('message', handleMessage);
-  socket.on('error', handleError);
-  socket.on('disconnect', handleDisconnection);
-  socket.on('connect_error', handleConnectionError);
-  socket.on('connect_timeout', handleConnectionTimeout);
-};
+  initializeGame(data) {
+    if (!data) {
+      throw new Error('No data was provided for initialization');
+    }
+    if (this.gameInstance) {
+      return console.log('Game is already initialized');
+    }
+    this.gameInstance = new LifeGame(data.user, data.settings);
+    this.gameInstance.init();
+    this.gameInstance.setState(data.state);
+    this.gameInstance.send = data => {
+      this.socket.emit('message', {type: 'ADD_POINT', data});
+    };
+  }
+
+  updateGameState(data) {
+    if (!data) {
+      throw new Error('No data was provided for update');
+    }
+    if (!this.gameInstance) {
+      throw new Error("Game isn't initialized yet. Initialize game before state update");
+    }
+    this.gameInstance.setState(data);
+  }
+
+  bindListeners(socket, token) {
+    socket.on('connect', () => {
+      if(this.firstConnection) {
+        console.log(`Successfully connected. Token: ${token}`);
+      }
+    });
+    socket.on('reconnecting', attempt => {
+      this.firstConnection = false;
+      const logmsgattempt = (attempt > 1) ? `(${attempt-1})` : '';
+      console.log(`Reconnecting... ${logmsgattempt}`);
+    });
+    socket.on('reconnect', attempts => console.log(`Successfully reconnected after ${attempts} attempts. Token: ${token}`));
+    socket.on('reconnect_failed', () => {
+      const reloadAfter = 15000;
+      console.log(`All reconnection attempts failed. Page will be reloaded after ${reloadAfter/1000} seconds\nCheck "Persist Logs" if you want to keep console messages.`);
+      setTimeout(() => {
+        location.reload();
+      }, reloadAfter);
+    });
+    socket.on('message', msg => {
+      try {
+        this.executeScenario(msg);
+      } catch (e) {
+        console.log(`Error: ${e.message}`);
+      }
+    });
+    socket.on('error', e => console.log(`Socket error: ${e}`));
+    socket.on('disconnect', e => console.log(`Disconnected. Reason: ${e}`));
+    socket.on('connect_error', e => console.log(`Connection error: ${e.message}`));
+    socket.on('connect_timeout', () => console.log('Connection timeout.'));
+  }
+}
+
+App.onToken = token => new LifeGameClient(addr.local, token, true, 4);
